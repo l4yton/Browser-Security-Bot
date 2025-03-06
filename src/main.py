@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import asyncio
+import logging
 import os
 
 from discord import Intents
@@ -12,6 +13,8 @@ TOKEN = os.environ.get("BROWSER_SECURITY_BOT")
 
 
 async def main():
+    logging.basicConfig(level=logging.INFO)
+
     bot = commands.Bot(command_prefix="%", intents=Intents.all())
 
     await bot.add_cog(advisories.AdvisoriesCog(bot))

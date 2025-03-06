@@ -1,8 +1,9 @@
 import asyncio
+import logging
 import re
 from dataclasses import dataclass
 from typing import Optional, List
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, quote
 
 import httpx
 from bs4 import BeautifulSoup
@@ -36,9 +37,9 @@ class Bug:
         message += f"{self.cve}: {escape_markdown(self.description)}."
 
         if self.report_link:
-            message += f" [Report]({self.report_link})."
+            message += f" -- [Report](<{self.report_link}>)."
         if self.commit_link:
-            message += f" [Commit]({self.commit_link})."
+            message += f" -- [Commit(s)](<{self.commit_link}>)."
 
         return message
 
@@ -66,16 +67,18 @@ class AdvisoriesTracker:
 
         self.latest_advisory_url = urls[0]
 
-    async def find_latest_advisory_urls() -> List[str]:
+    async def find_latest_advisory_urls(self) -> List[str]:
         raise NotImplementedError
 
-    async def collect_bugs_from_advisory(url: str) -> List[Bug]:
+    async def collect_bugs_from_advisory(self, _url: str) -> List[Bug]:
         raise NotImplementedError
 
 
 class ChromeAdvisoriesTracker(AdvisoriesTracker):
 
-    async def find_latest_advisory_urls() -> List[str]:
+    async def find_latest_advisory_urls(self) -> List[str]:
+        logging.info(
+            "ChromeAdvisoriesTracker: Finding latest advisory URLs...")
         async with httpx.AsyncClient(follow_redirects=True) as client:
             resp = await client.get(
                 "https://chromereleases.googleblog.com/search/label/Stable%20updates"
@@ -90,28 +93,33 @@ class ChromeAdvisoriesTracker(AdvisoriesTracker):
 
         return urls
 
-    async def collect_bugs_from_advisory(url: str) -> List[Bug]:
+    async def collect_bugs_from_advisory(self, url: str) -> List[Bug]:
+        logging.info(f"ChromeAdvisoriesTracker: Collecting bugs from {url}...")
         async with httpx.AsyncClient(follow_redirects=True) as client:
             resp = await client.get(url)
 
-        fixes = re.findall(CHROME_SECURITY_FIX_RE, resp.content)
+        soup = BeautifulSoup(resp.content, "html.parser")
         bugs = []
 
-        for fix in fixes:
+        for fix in re.findall(CHROME_SECURITY_FIX_RE, soup.text):
             bugs.append(
                 Bug(reward=fix[1],
                     severity=fix[3],
                     cve=fix[4],
                     description=fix[5],
-                    report_link="https://crbug.com/" + fix[2],
+                    report_link="https://issues.chromium.org/issues/" + fix[2],
                     commit_link=
-                    "https://chromium-review.googlesource.com/q/bug:" +
+                    "https://chromium-review.googlesource.com/q/message:" +
                     fix[2]))
+
+        return bugs
 
 
 class FirefoxAdvisoriesTracker(AdvisoriesTracker):
 
-    async def find_latest_advisory_urls() -> List[str]:
+    async def find_latest_advisory_urls(self) -> List[str]:
+        logging.info(
+            "FirefoxAdvisoriesTracker: Finding latest advisory URLs...")
         async with httpx.AsyncClient(follow_redirects=True) as client:
             resp = await client.get(
                 "https://www.mozilla.org/en-US/security/known-vulnerabilities/firefox/"
@@ -126,7 +134,9 @@ class FirefoxAdvisoriesTracker(AdvisoriesTracker):
 
         return urls
 
-    async def collect_bugs_from_advisory(url: str) -> List[Bug]:
+    async def collect_bugs_from_advisory(self, url: str) -> List[Bug]:
+        logging.info(
+            f"FirefoxAdvisoriesTracker: Collecting bugs from {url}...")
         async with httpx.AsyncClient(follow_redirects=True) as client:
             resp = await client.get(url)
 
@@ -139,11 +149,13 @@ class FirefoxAdvisoriesTracker(AdvisoriesTracker):
             severity = elem.find("span", {"class": "level"}).text
             report_link = elem.find("ul").find("a")["href"]
 
+            # ?id=12345             -- single bug id
+            # ?bug_id=12345, 12346  -- multiple bug ids
             query = parse_qs(urlparse(report_link).query)
-            bug_ids = query["bug_id"][0].split(",")
+            bug_qs = query["id"][0] if "id" in query else query["bug_id"][0]
             search = " OR ".join(
-                ["%22Bug: " + bug_id + "%22" for bug_id in bug_ids])
-            commit_link = f"https://github.com/search?q=repo%3amozilla%2fgecko-dev+{search}&type=commits"
+                ["\"Bug: " + bug_id + "\"" for bug_id in bug_qs.split(",")])
+            commit_link = f"https://github.com/search?q=repo%3amozilla%2fgecko-dev+{quote(search)}&type=commits"
 
             bugs.append(
                 Bug(reward=None,
@@ -158,7 +170,9 @@ class FirefoxAdvisoriesTracker(AdvisoriesTracker):
 
 class SafariAdvisoriesTracker(AdvisoriesTracker):
 
-    async def find_latest_advisory_urls() -> List[str]:
+    async def find_latest_advisory_urls(self) -> List[str]:
+        logging.info(
+            "SafariAdvisoriesTracker: Finding latest advisory URLs...")
         async with httpx.AsyncClient(follow_redirects=True) as client:
             resp = await client.get("https://support.apple.com/en-us/100100")
 
@@ -175,9 +189,10 @@ class SafariAdvisoriesTracker(AdvisoriesTracker):
 
         return urls
 
-    async def collect_bugs_from_advisory(url: str) -> List[Bug]:
+    async def collect_bugs_from_advisory(self, url: str) -> List[Bug]:
+        logging.info(f"SafariAdvisoriesTracker: Collecting bugs from {url}...")
         async with httpx.AsyncClient(follow_redirects=True) as client:
-            resp = await client.get("https://support.apple.com/en-us/100100")
+            resp = await client.get(url)
 
         soup = BeautifulSoup(resp.content, "html.parser")
         bugs = []
@@ -193,7 +208,7 @@ class SafariAdvisoriesTracker(AdvisoriesTracker):
             if cve_or_bug_id_elem.name == "div":
                 report_link = "https://bugs.webkit.org/show_bug.cgi?id=" + cve_or_bug_id_elem.text.split(
                     ":")[1].strip()
-                commit_link = f"https://github.com/search?q=repo:WebKit/WebKit+%22{report_link}%22&type=commits"
+                commit_link = f"https://github.com/search?q=repo:WebKit/WebKit+%22{quote(report_link)}%22&type=commits"
 
                 cve_or_bug_id_elem = cve_or_bug_id_elem.find_next_sibling()
 
@@ -222,16 +237,20 @@ class AdvisoriesCog(commands.Cog):
         self.firefox = None
         self.safari = None
 
+        self.check_for_new_advisory.start()
+
     @tasks.loop(hours=12)
     async def check_for_new_advisory(self):
+        logging.info("AdvisoriesCog: Checking for any new adivsory...")
+
         if self.chrome:
-            self.chrome.check_for_new_advisory()
+            await self.chrome.check_for_new_advisory()
 
         if self.firefox:
-            self.firefox.check_for_new_advisory()
+            await self.firefox.check_for_new_advisory()
 
         if self.safari:
-            self.safari.check_for_new_advisory()
+            await self.safari.check_for_new_advisory()
 
     @commands.command()
     async def advisories(self, ctx: commands.Context, value: str):
