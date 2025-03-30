@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import re
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Optional, List
 from urllib.parse import urlparse, parse_qs, quote
@@ -45,9 +46,19 @@ class Bug:
 
 
 @dataclass
-class AdvisoriesTracker:
+class AdvisoriesConfig:
+    chrome_channel_id: int
+    firefox_channel_id: int
+    safari_channel_id: int
+
+
+class AdvisoriesTracker(ABC):
     channel: TextChannel
     latest_advisory_url: Optional[str]
+
+    def __init__(self, channel: TextChannel):
+        self.channel = channel
+        self.latest_advisory_url = None
 
     async def check_for_new_advisory(self):
         urls = await self.find_latest_advisory_urls()
@@ -67,10 +78,20 @@ class AdvisoriesTracker:
 
         self.latest_advisory_url = urls[0]
 
+    @abstractmethod
     async def find_latest_advisory_urls(self) -> List[str]:
+        """
+        Returns a list of urls of the latest security advisories, starting
+        with the newest.
+        """
         raise NotImplementedError
 
+    @abstractmethod
     async def collect_bugs_from_advisory(self, _url: str) -> List[Bug]:
+        """
+        Returns a list of bugs collected from the given url of a security
+        advisory, in no particular order.
+        """
         raise NotImplementedError
 
 
@@ -227,22 +248,47 @@ class SafariAdvisoriesTracker(AdvisoriesTracker):
 
 class AdvisoriesCog(commands.Cog):
     bot: commands.Bot
+    config: AdvisoriesConfig
+
     chrome: Optional[ChromeAdvisoriesTracker]
     firefox: Optional[FirefoxAdvisoriesTracker]
     safari: Optional[SafariAdvisoriesTracker]
 
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: commands.Bot, config: AdvisoriesConfig):
         self.bot = bot
+        self.config = config
+
         self.chrome = None
         self.firefox = None
         self.safari = None
 
         self.check_for_new_advisory.start()
 
+    @commands.Cog.listener()
+    async def cog_load(self):
+        channel = self.bot.get_channel(self.config.chrome_channel_id)
+        if channel:
+            self.chrome = ChromeAdvisoriesTracker(channel)
+            await channel.send(
+                "Chrome advisories will now be sent to this channel :white_check_mark:"
+            )
+
+        channel = self.bot.get_channel(self.config.firefox_channel_id)
+        if channel:
+            self.firefox = FirefoxAdvisoriesTracker(channel)
+            await channel.send(
+                "Firefox advisories will now be sent to this channel :white_check_mark:"
+            )
+
+        channel = self.bot.get_channel(self.config.safari_channel_id)
+        if channel:
+            self.safari = SafariAdvisoriesTracker(channel)
+            await channel.send(
+                "Safari advisories will now be sent to this channel :white_check_mark:"
+            )
+
     @tasks.loop(hours=12)
     async def check_for_new_advisory(self):
-        logging.info("AdvisoriesCog: Checking for any new adivsory...")
-
         if self.chrome:
             await self.chrome.check_for_new_advisory()
 
@@ -254,22 +300,25 @@ class AdvisoriesCog(commands.Cog):
 
     @commands.command()
     async def advisories(self, ctx: commands.Context, value: str):
+        # TODO: Add option to remove tracker
+        # TODO: We need to update and save the config
+
         if value == "chrome":
-            self.chrome = ChromeAdvisoriesTracker(ctx.channel, None)
+            self.chrome = ChromeAdvisoriesTracker(ctx.channel)
             await ctx.send(
                 "Chrome advisories will now be sent to this channel :white_check_mark:"
             )
             return
 
         if value == "firefox":
-            self.firefox = FirefoxAdvisoriesTracker(ctx.channel, None)
+            self.firefox = FirefoxAdvisoriesTracker(ctx.channel)
             await ctx.send(
                 "Firefox advisories will now be sent to this channel :white_check_mark:"
             )
             return
 
         if value == "safari":
-            self.safari = SafariAdvisoriesTracker(ctx.channel, None)
+            self.safari = SafariAdvisoriesTracker(ctx.channel)
             await ctx.send(
                 "Safari advisories will now be sent to this channel :white_check_mark:"
             )

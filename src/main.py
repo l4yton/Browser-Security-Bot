@@ -13,10 +13,11 @@ TOKEN = os.environ.get("BROWSER_SECURITY_BOT")
 
 
 async def main():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
     bot = commands.Bot(command_prefix="%", intents=Intents.all())
-
     await bot.add_cog(advisories.AdvisoriesCog(bot))
     await bot.add_cog(arxiv.ArXivCog(bot))
     await bot.add_cog(blogs.BlogsCog(bot))
