@@ -261,7 +261,8 @@ class AdvisoriesCog(commands.Cog):
 
         self.check_for_new_advisory.start()
 
-    async def cog_load(self):
+    @commands.Cog.listener()
+    async def on_ready(self):
         with open("config.json", "r") as f:
             data = json.load(f)
 
@@ -290,8 +291,6 @@ class AdvisoriesCog(commands.Cog):
             await channel.send(
                 "Safari advisories will now be sent to this channel :smiley:")
 
-        return await super().cog_load()
-
     async def cog_unload(self):
         # This is not super efficient, but we don't really care.
         with open("config.json", "r") as f:
@@ -313,6 +312,17 @@ class AdvisoriesCog(commands.Cog):
 
         return await super().cog_unload()
 
+    @commands.Cog.listener()
+    async def on_guild_channel_delete(self, channel: commands.Context):
+        if self.chrome and self.chrome.channel.id == channel.id:
+            self.chrome = None
+
+        if self.firefox and self.firefox.channel.id == channel.id:
+            self.firefox = None
+
+        if self.safari and self.safari.channel.id == channel.id:
+            self.safari = None
+
     @tasks.loop(hours=12)
     async def check_for_new_advisory(self):
         if self.chrome:
@@ -328,10 +338,29 @@ class AdvisoriesCog(commands.Cog):
     async def advisories(self, ctx: commands.Context):
         if ctx.invoked_subcommand is None:
             await ctx.send(
-                f'Invalid subcommand. Valid values are: remove or add.')
+                f"Invalid subcommand. Valid values are: add, remove or list")
 
     @advisories.command(name="add")
     async def advisories_add(self, ctx: commands.Context, arg: str):
+        # Check if the tracker is already running.
+        if arg == "chrome" and self.chrome:
+            await ctx.send(
+                f"ChromeAdvisoriesTracker is already running in <#{self.chrome.channel.id}>"
+            )
+            return
+
+        if arg == "firefox" and self.firefox:
+            await ctx.send(
+                f"FirefoxAdvisoriesTracker is already running in <#{self.firefox.channel.id}>"
+            )
+            return
+
+        if arg == "safari" and self.safari:
+            await ctx.send(
+                f"SafariAdvisoriesTracker is already running in <#{self.safari.channel.id}>"
+            )
+            return
+
         match arg:
             case "chrome":
                 self.chrome = ChromeAdvisoriesTracker(ctx.channel)
@@ -350,11 +379,34 @@ class AdvisoriesCog(commands.Cog):
                 )
             case _:
                 await ctx.send(
-                    "Invalid argument. Valid values are: chrome, firefox or safari."
+                    "Invalid argument. Valid values are: chrome, firefox or safari"
                 )
 
     @advisories.command(name="remove")
     async def advisories_remove(self, ctx: commands.Context, arg: str):
+        # Check if the tracker is running in the channel the message
+        # originated from.
+        if arg == "chrome" and not (self.chrome and self.chrome.channel.id
+                                    == ctx.channel.id):
+            await ctx.send(
+                "There is currently no ChromeAdvisoriesTracker running in this channel"
+            )
+            return
+
+        if arg == "firefox" and not (self.firefox and self.firefox.channel.id
+                                     == ctx.channel.id):
+            await ctx.send(
+                "There is currently no FirefoxAdvisoriesTracker running in this channel"
+            )
+            return
+
+        if arg == "safari" and not (self.safari and self.safari.channel.id
+                                    == ctx.channel.id):
+            await ctx.send(
+                "There is currently no SafariAdvisoriesTracker running in this channel"
+            )
+            return
+
         match arg:
             case "chrome":
                 self.chrome = None
@@ -375,3 +427,14 @@ class AdvisoriesCog(commands.Cog):
                 await ctx.send(
                     "Invalid argument. Valid values are: chrome, firefox or safari."
                 )
+
+    @advisories.command(name="list")
+    async def advisories_list(self, ctx: commands.Context):
+        chrome_channel_message = f"<#{self.chrome.channel.id}>" if self.chrome else "null"
+        firefox_channel_message = f"<#{self.firefox.channel.id}>" if self.firefox else "null"
+        safari_channel_message = f"<#{self.safari.channel.id}>" if self.safari else "null"
+
+        await ctx.send(
+            f"- ChromeAdvisoriesTracker: {chrome_channel_message}\n" +
+            f"- FirefoxAdvisoriesTracker: {firefox_channel_message}\n" +
+            f"- SafariAdvisoriesTracker: {safari_channel_message}")
