@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import os
+import signal
 
 from discord import Intents
 from discord.ext import commands
@@ -23,7 +24,12 @@ async def main():
     await bot.add_cog(blogs.BlogsCog(bot))
     await bot.add_cog(disclosures.DisclosuresCog(bot))
 
-    await bot.start(TOKEN)
+    # Handle ctrl-c gracefully and make sure the cogs get unloaded
+    # properly :)
+    try:
+        await bot.start(TOKEN)
+    except (asyncio.exceptions.CancelledError, KeyboardInterrupt):
+        await bot.close()
 
 
 if __name__ == "__main__":

@@ -14,4 +14,3 @@ BROWSER_SECURITY_BOT="..." uv run src/main.py
 
 ## TODO
 - Improve logging
-- Optionally initialize from configuration file

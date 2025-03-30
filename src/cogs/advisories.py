@@ -1,8 +1,9 @@
 import asyncio
+import json
 import logging
 import re
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import Optional, List
 from urllib.parse import urlparse, parse_qs, quote
 
@@ -47,9 +48,9 @@ class Bug:
 
 @dataclass
 class AdvisoriesConfig:
-    chrome_channel_id: int
-    firefox_channel_id: int
-    safari_channel_id: int
+    chrome_channel_id: Optional[int]
+    firefox_channel_id: Optional[int]
+    safari_channel_id: Optional[int]
 
 
 class AdvisoriesTracker(ABC):
@@ -248,44 +249,69 @@ class SafariAdvisoriesTracker(AdvisoriesTracker):
 
 class AdvisoriesCog(commands.Cog):
     bot: commands.Bot
-    config: AdvisoriesConfig
-
     chrome: Optional[ChromeAdvisoriesTracker]
     firefox: Optional[FirefoxAdvisoriesTracker]
     safari: Optional[SafariAdvisoriesTracker]
 
-    def __init__(self, bot: commands.Bot, config: AdvisoriesConfig):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.config = config
-
         self.chrome = None
         self.firefox = None
         self.safari = None
 
         self.check_for_new_advisory.start()
 
-    @commands.Cog.listener()
     async def cog_load(self):
-        channel = self.bot.get_channel(self.config.chrome_channel_id)
+        with open("config.json", "r") as f:
+            data = json.load(f)
+
+        if not "advisories" in data:
+            return
+
+        # The values for this Cog are in "advisories". Try to initialize
+        # with the provided configuration.
+        config = AdvisoriesConfig(**data["advisories"])
+
+        channel = self.bot.get_channel(config.chrome_channel_id)
         if channel:
             self.chrome = ChromeAdvisoriesTracker(channel)
             await channel.send(
-                "Chrome advisories will now be sent to this channel :white_check_mark:"
-            )
+                "Chrome advisories will now be sent to this channel :smiley:")
 
-        channel = self.bot.get_channel(self.config.firefox_channel_id)
+        channel = self.bot.get_channel(config.firefox_channel_id)
         if channel:
             self.firefox = FirefoxAdvisoriesTracker(channel)
             await channel.send(
-                "Firefox advisories will now be sent to this channel :white_check_mark:"
-            )
+                "Firefox advisories will now be sent to this channel :smiley:")
 
-        channel = self.bot.get_channel(self.config.safari_channel_id)
+        channel = self.bot.get_channel(config.safari_channel_id)
         if channel:
             self.safari = SafariAdvisoriesTracker(channel)
             await channel.send(
-                "Safari advisories will now be sent to this channel :white_check_mark:"
-            )
+                "Safari advisories will now be sent to this channel :smiley:")
+
+        return await super().cog_load()
+
+    async def cog_unload(self):
+        # This is not super efficient, but we don't really care.
+        with open("config.json", "r") as f:
+            data = json.load(f)
+
+        chrome_channel_id = self.chrome.channel.id if self.chrome else None
+        firefox_channel_id = self.firefox.channel.id if self.firefox else None
+        safari_channel_id = self.safari.channel.id if self.safari else None
+
+        config = AdvisoriesConfig(chrome_channel_id=chrome_channel_id,
+                                  firefox_channel_id=firefox_channel_id,
+                                  safari_channel_id=safari_channel_id)
+        # Every Cog is responsible for its own values and has to make sure
+        # not to override any others.
+        data["advisories"] = asdict(config)
+
+        with open("config.json", "w") as f:
+            json.dump(data, f)
+
+        return await super().cog_unload()
 
     @tasks.loop(hours=12)
     async def check_for_new_advisory(self):
@@ -298,32 +324,54 @@ class AdvisoriesCog(commands.Cog):
         if self.safari:
             await self.safari.check_for_new_advisory()
 
-    @commands.command()
-    async def advisories(self, ctx: commands.Context, value: str):
-        # TODO: Add option to remove tracker
-        # TODO: We need to update and save the config
-
-        if value == "chrome":
-            self.chrome = ChromeAdvisoriesTracker(ctx.channel)
+    @commands.group()
+    async def advisories(self, ctx: commands.Context):
+        if ctx.invoked_subcommand is None:
             await ctx.send(
-                "Chrome advisories will now be sent to this channel :white_check_mark:"
-            )
-            return
+                f'Invalid subcommand. Valid values are: remove or add.')
 
-        if value == "firefox":
-            self.firefox = FirefoxAdvisoriesTracker(ctx.channel)
-            await ctx.send(
-                "Firefox advisories will now be sent to this channel :white_check_mark:"
-            )
-            return
+    @advisories.command(name="add")
+    async def advisories_add(self, ctx: commands.Context, arg: str):
+        match arg:
+            case "chrome":
+                self.chrome = ChromeAdvisoriesTracker(ctx.channel)
+                await ctx.send(
+                    "Chrome advisories will now be sent to this channel :smiley:"
+                )
+            case "firefox":
+                self.firefox = FirefoxAdvisoriesTracker(ctx.channel)
+                await ctx.send(
+                    "Firefox advisories will now be sent to this channel :smiley:"
+                )
+            case "safari":
+                self.safari = SafariAdvisoriesTracker(ctx.channel)
+                await ctx.send(
+                    "Safari advisories will now be sent to this channel :smiley:"
+                )
+            case _:
+                await ctx.send(
+                    "Invalid argument. Valid values are: chrome, firefox or safari."
+                )
 
-        if value == "safari":
-            self.safari = SafariAdvisoriesTracker(ctx.channel)
-            await ctx.send(
-                "Safari advisories will now be sent to this channel :white_check_mark:"
-            )
-            return
-
-        await ctx.send(
-            "Unrecognized value. Valid values are \"chrome\", \"firefox\" or \"safari\"."
-        )
+    @advisories.command(name="remove")
+    async def advisories_remove(self, ctx: commands.Context, arg: str):
+        match arg:
+            case "chrome":
+                self.chrome = None
+                await ctx.send(
+                    "Chrome advisories will no longer be sent to this channel :pensive:"
+                )
+            case "firefox":
+                self.firefox = None
+                await ctx.send(
+                    "Firefox advisories will no longer be sent to this channel :pensive:"
+                )
+            case "safari":
+                self.safari = None
+                await ctx.send(
+                    "Safari advisories will no longer be sent to this channel :pensive:"
+                )
+            case _:
+                await ctx.send(
+                    "Invalid argument. Valid values are: chrome, firefox or safari."
+                )
