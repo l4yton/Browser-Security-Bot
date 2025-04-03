@@ -235,6 +235,8 @@ class SafariAdvisoriesTracker(AdvisoriesTracker):
                 cve_or_bug_id_elem = cve_or_bug_id_elem.find_next_sibling()
 
             cve = cve_or_bug_id_elem.text.split(":")[0].strip()
+            if not cve.startswith("CVE"):
+                break
 
             bugs.append(
                 Bug(reward=None,
