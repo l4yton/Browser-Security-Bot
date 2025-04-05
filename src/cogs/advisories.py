@@ -265,6 +265,10 @@ class AdvisoriesCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
+        # We may end up here on a reconnect.
+        if self.chrome or self.firefox or self.safari:
+            return
+
         with open("config.json", "r") as f:
             data = json.load(f)
 
