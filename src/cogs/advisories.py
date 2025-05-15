@@ -226,6 +226,10 @@ class SafariAdvisoriesTracker(AdvisoriesTracker):
             impact_elem = elem.find_next().find_next()
             description = impact_elem.text.replace("Impact: ", "").strip()
 
+            # Sanity check that the element is actually for a bug.
+            if "Impact" not in impact_elem.text:
+                continue
+
             cve_or_bug_id_elem = impact_elem.find_next().find_next()
             if cve_or_bug_id_elem.name == "div":
                 report_link = "https://bugs.webkit.org/show_bug.cgi?id=" + cve_or_bug_id_elem.text.split(
