@@ -286,20 +286,14 @@ class AdvisoriesCog(commands.Cog):
         channel = self.bot.get_channel(config.chrome_channel_id)
         if channel:
             self.chrome = ChromeAdvisoriesTracker(channel)
-            await channel.send(
-                "Chrome advisories will now be sent to this channel")
 
         channel = self.bot.get_channel(config.firefox_channel_id)
         if channel:
             self.firefox = FirefoxAdvisoriesTracker(channel)
-            await channel.send(
-                "Firefox advisories will now be sent to this channel")
 
         channel = self.bot.get_channel(config.safari_channel_id)
         if channel:
             self.safari = SafariAdvisoriesTracker(channel)
-            await channel.send(
-                "Safari advisories will now be sent to this channel")
 
     async def cog_unload(self):
         async with asyncio.Lock():

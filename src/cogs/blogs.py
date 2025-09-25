@@ -73,9 +73,10 @@ class BlogsCog(commands.Cog):
                     if start_time > post["published_parsed"]:
                         channel = self.bot.get_channel(channel_id)
                         link = post["link"]
+                        title = post["title"]
 
                         assert channel
-                        await channel.send(f"[{name}] <{link}>")
+                        await channel.send(f"{name}: [{title}](<{link}>)")
 
                 asyncio.sleep(1)
 
