@@ -31,7 +31,10 @@ class BlogsCog(commands.Cog):
         if not "blogs" in data:
             return
 
-        self.entries = data["blogs"].copy()
+        for (channel_id, blogs) in data["blogs"].items():
+            self.entries[channel_id] = {}
+            for (name, url) in blogs.items():
+                self.entries[channel_id][name] = url
 
     async def cog_unload(self):
         async with asyncio.Lock():
@@ -39,7 +42,11 @@ class BlogsCog(commands.Cog):
             with open("config.json", "r") as f:
                 data = json.load(f)
 
-            data["blogs"] = self.entries.copy()
+            data["blogs"] = {}
+            for (channel_id, blogs) in self.entries.items():
+                data["blogs"][channel_id] = {}
+                for (name, url) in blogs.items():
+                    data["blogs"][channel_id][name] = url
 
             with open("config.json", "w") as f:
                 json.dump(data, f)
