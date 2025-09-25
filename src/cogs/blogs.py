@@ -92,7 +92,7 @@ class BlogsCog(commands.Cog):
 
         self.entries[ctx.channel.id][name] = url
         await ctx.send(
-            f"Posts from {name}(<{url}>) will now be sent to this channel :smiley:"
+            f"Posts from [{name}](<{url}>) will now be sent to this channel :smiley:"
         )
 
     @blogs.command(name="remove")
@@ -107,7 +107,7 @@ class BlogsCog(commands.Cog):
 
         del self.entries[ctx.channel.id][name]
         await ctx.send(
-            f"Posts from {name}(<{url}>) will no longer be sent to this channel :pensive:"
+            f"Posts from [{name}](<{url}>) will no longer be sent to this channel :pensive:"
         )
 
     @blogs.command(name="list")
