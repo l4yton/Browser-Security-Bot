@@ -31,7 +31,7 @@ class BlogsCog(commands.Cog):
         if not "blogs" in data:
             return
 
-        self.entries = data["blogs"]
+        self.entries = data["blogs"].copy()
 
     async def cog_unload(self):
         async with asyncio.Lock():
@@ -39,7 +39,7 @@ class BlogsCog(commands.Cog):
             with open("config.json", "r") as f:
                 data = json.load(f)
 
-            data["blogs"] = self.entries
+            data["blogs"] = self.entries.copy()
 
             with open("config.json", "w") as f:
                 json.dump(data, f)
