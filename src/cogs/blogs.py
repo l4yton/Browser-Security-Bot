@@ -32,6 +32,7 @@ class BlogsCog(commands.Cog):
             return
 
         for (channel_id, blogs) in data["blogs"].items():
+            channel_id = int(channel_id)
             self.entries[channel_id] = {}
             for (name, url) in blogs.items():
                 self.entries[channel_id][name] = url
