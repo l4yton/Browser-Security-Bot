@@ -86,14 +86,12 @@ class BlogsCog(commands.Cog):
 
         if name in self.entries[ctx.channel.id]:
             await ctx.send(
-                f"An entry for {name} already exists in this channel :pensive:"
-            )
+                f"An entry for {name} already exists in this channel")
             return
 
         self.entries[ctx.channel.id][name] = url
         await ctx.send(
-            f"Posts from [{name}](<{url}>) will now be sent to this channel :smiley:"
-        )
+            f"Posts from [{name}](<{url}>) will now be sent to this channel")
 
     @blogs.command(name="remove")
     async def blogs_remove(self, ctx: commands.Context, name: str, url: str):
@@ -101,19 +99,18 @@ class BlogsCog(commands.Cog):
             self.entries[ctx.channel.id] = {}
 
         if not name in self.entries[ctx.channel.id]:
-            await ctx.send(
-                f"There is no entry for {name} in this channel :pensive:")
+            await ctx.send(f"There is no entry for {name} in this channel")
             return
 
         del self.entries[ctx.channel.id][name]
         await ctx.send(
-            f"Posts from [{name}](<{url}>) will no longer be sent to this channel :pensive:"
+            f"Posts from [{name}](<{url}>) will no longer be sent to this channel"
         )
 
     @blogs.command(name="list")
     async def blogs_list(self, ctx: commands.Context):
         if len(self.entries) == 0:
-            await ctx.send("There are currently no entries :pensive:")
+            await ctx.send("There are currently no entries")
 
         await ctx.send("\n".join([
             f"<#{channel_id}>: " +

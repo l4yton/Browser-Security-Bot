@@ -287,19 +287,19 @@ class AdvisoriesCog(commands.Cog):
         if channel:
             self.chrome = ChromeAdvisoriesTracker(channel)
             await channel.send(
-                "Chrome advisories will now be sent to this channel :smiley:")
+                "Chrome advisories will now be sent to this channel")
 
         channel = self.bot.get_channel(config.firefox_channel_id)
         if channel:
             self.firefox = FirefoxAdvisoriesTracker(channel)
             await channel.send(
-                "Firefox advisories will now be sent to this channel :smiley:")
+                "Firefox advisories will now be sent to this channel")
 
         channel = self.bot.get_channel(config.safari_channel_id)
         if channel:
             self.safari = SafariAdvisoriesTracker(channel)
             await channel.send(
-                "Safari advisories will now be sent to this channel :smiley:")
+                "Safari advisories will now be sent to this channel")
 
     async def cog_unload(self):
         async with asyncio.Lock():
@@ -376,18 +376,15 @@ class AdvisoriesCog(commands.Cog):
             case "chrome":
                 self.chrome = ChromeAdvisoriesTracker(ctx.channel)
                 await ctx.send(
-                    "Chrome advisories will now be sent to this channel :smiley:"
-                )
+                    "Chrome advisories will now be sent to this channel")
             case "firefox":
                 self.firefox = FirefoxAdvisoriesTracker(ctx.channel)
                 await ctx.send(
-                    "Firefox advisories will now be sent to this channel :smiley:"
-                )
+                    "Firefox advisories will now be sent to this channel")
             case "safari":
                 self.safari = SafariAdvisoriesTracker(ctx.channel)
                 await ctx.send(
-                    "Safari advisories will now be sent to this channel :smiley:"
-                )
+                    "Safari advisories will now be sent to this channel")
             case _:
                 await ctx.send(
                     "Invalid argument. Valid values are: chrome, firefox or safari"
@@ -422,18 +419,16 @@ class AdvisoriesCog(commands.Cog):
             case "chrome":
                 self.chrome = None
                 await ctx.send(
-                    "Chrome advisories will no longer be sent to this channel :pensive:"
-                )
+                    "Chrome advisories will no longer be sent to this channel")
             case "firefox":
                 self.firefox = None
                 await ctx.send(
-                    "Firefox advisories will no longer be sent to this channel :pensive:"
+                    "Firefox advisories will no longer be sent to this channel"
                 )
             case "safari":
                 self.safari = None
                 await ctx.send(
-                    "Safari advisories will no longer be sent to this channel :pensive:"
-                )
+                    "Safari advisories will no longer be sent to this channel")
             case _:
                 await ctx.send(
                     "Invalid argument. Valid values are: chrome, firefox or safari."
