@@ -302,25 +302,26 @@ class AdvisoriesCog(commands.Cog):
                 "Safari advisories will now be sent to this channel :smiley:")
 
     async def cog_unload(self):
-        # This is not super efficient, but we don't really care.
-        with open("config.json", "r") as f:
-            data = json.load(f)
+        async with asyncio.Lock():
+            # This is not super efficient, but we don't really care.
+            with open("config.json", "r") as f:
+                data = json.load(f)
 
-        chrome_channel_id = self.chrome.channel.id if self.chrome else None
-        firefox_channel_id = self.firefox.channel.id if self.firefox else None
-        safari_channel_id = self.safari.channel.id if self.safari else None
+            chrome_channel_id = self.chrome.channel.id if self.chrome else None
+            firefox_channel_id = self.firefox.channel.id if self.firefox else None
+            safari_channel_id = self.safari.channel.id if self.safari else None
 
-        config = AdvisoriesConfig(chrome_channel_id=chrome_channel_id,
-                                  firefox_channel_id=firefox_channel_id,
-                                  safari_channel_id=safari_channel_id)
-        # Every Cog is responsible for its own values and has to make sure
-        # not to override any others.
-        data["advisories"] = asdict(config)
+            config = AdvisoriesConfig(chrome_channel_id=chrome_channel_id,
+                                      firefox_channel_id=firefox_channel_id,
+                                      safari_channel_id=safari_channel_id)
+            # Every Cog is responsible for its own values and has to make sure
+            # not to override any others.
+            data["advisories"] = asdict(config)
 
-        with open("config.json", "w") as f:
-            json.dump(data, f)
+            with open("config.json", "w") as f:
+                json.dump(data, f)
 
-        return await super().cog_unload()
+            return await super().cog_unload()
 
     @commands.Cog.listener()
     async def on_guild_channel_delete(self, channel: commands.Context):
