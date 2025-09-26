@@ -78,7 +78,7 @@ class BlogsCog(commands.Cog):
                         assert channel
                         await channel.send(f"{name}: [{title}](<{link}>)")
 
-                asyncio.sleep(1)
+                await asyncio.sleep(1)
 
         self.latest_run = start_time
 
