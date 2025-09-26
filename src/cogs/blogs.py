@@ -10,7 +10,7 @@ from discord.ext import commands, tasks
 class BlogsCog(commands.Cog):
     bot: commands.Bot
     entries: Dict[int, Dict[str, str]]
-    latest_run: Optional[int]
+    latest_run: Optional[time.struct_time]
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -70,7 +70,7 @@ class BlogsCog(commands.Cog):
             for (name, url) in blogs.items():
                 feed = feedparser.parse(url)
                 for post in feed["entries"]:
-                    if start_time > post["published_parsed"]:
+                    if post["published_parsed"] > self.latest_run:
                         channel = self.bot.get_channel(channel_id)
                         link = post["link"]
                         title = post["title"]

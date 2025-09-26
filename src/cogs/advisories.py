@@ -35,7 +35,6 @@ class Bug:
 
         assert self.cve
         assert self.description
-
         message += f"{self.cve}: {escape_markdown(self.description)}."
 
         if self.report_link:
