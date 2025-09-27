@@ -10,8 +10,8 @@ from urllib.parse import urlparse, parse_qs, quote
 import httpx
 from bs4 import BeautifulSoup
 from discord import TextChannel
-from discord.utils import escape_markdown
 from discord.ext import commands, tasks
+from discord.utils import escape_markdown
 
 CHROME_SECURITY_FIX_RE = r"(\[\$(\d+)\])?\[(\d+)\] (Low|Medium|High|Critical) (CVE\-\d+\-\d+): ([^\.]+)"
 
@@ -424,7 +424,7 @@ class AdvisoriesCog(commands.Cog):
                     "Safari advisories will no longer be sent to this channel")
             case _:
                 await ctx.send(
-                    "Invalid argument. Valid values are: chrome, firefox or safari."
+                    "Invalid argument. Valid values are: chrome, firefox or safari"
                 )
 
     @advisories.command(name="list")

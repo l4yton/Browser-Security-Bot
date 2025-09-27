@@ -1,16 +1,18 @@
 import asyncio
+import datetime
 import json
 import time
 from typing import Dict, Optional
 
 import feedparser
 from discord.ext import commands, tasks
+from discord.utils import escape_markdown
 
 
 class BlogsCog(commands.Cog):
     bot: commands.Bot
     entries: Dict[int, Dict[str, str]]
-    latest_run: Optional[time.struct_time]
+    latest_run: Optional[datetime.datetime]
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -32,10 +34,9 @@ class BlogsCog(commands.Cog):
             return
 
         for (channel_id, blogs) in data["blogs"].items():
-            channel_id = int(channel_id)
-            self.entries[channel_id] = {}
+            self.entries[int(channel_id)] = {}
             for (name, url) in blogs.items():
-                self.entries[channel_id][name] = url
+                self.entries[int(channel_id)][name] = url
 
     async def cog_unload(self):
         async with asyncio.Lock():
@@ -60,7 +61,7 @@ class BlogsCog(commands.Cog):
 
     @tasks.loop(hours=12)
     async def check_for_new_blogs(self):
-        start_time = time.localtime()
+        start_time = datetime.datetime.now(datetime.timezone.utc)
 
         if self.latest_run is None:
             self.latest_run = start_time
@@ -70,13 +71,13 @@ class BlogsCog(commands.Cog):
             for (name, url) in blogs.items():
                 feed = feedparser.parse(url)
                 for post in feed["entries"]:
-                    if post["published_parsed"] > self.latest_run:
-                        channel = self.bot.get_channel(channel_id)
-                        link = post["link"]
-                        title = post["title"]
-
-                        assert channel
-                        await channel.send(f"{name}: [{title}](<{link}>)")
+                    published = datetime.datetime.fromtimestamp(
+                        time.mktime(post["published_parsed"]),
+                        datetime.timezone.utc)
+                    if published > self.latest_run:
+                        await self.bot.get_channel(channel_id).send(
+                            f"{name}: [{escape_markdown(post['title'])}](<{post['link']}>)"
+                        )
 
                 await asyncio.sleep(1)
 
@@ -103,15 +104,18 @@ class BlogsCog(commands.Cog):
             f"Posts from [{name}](<{url}>) will now be sent to this channel")
 
     @blogs.command(name="remove")
-    async def blogs_remove(self, ctx: commands.Context, name: str, url: str):
-        if not ctx.channel.id in self.entries:
-            self.entries[ctx.channel.id] = {}
-
-        if not name in self.entries[ctx.channel.id]:
+    async def blogs_remove(self, ctx: commands.Context, name: str):
+        if (not ctx.channel.id
+                in self.entries) or (not name in self.entries[ctx.channel.id]):
             await ctx.send(f"There is no entry for {name} in this channel")
             return
 
+        url = self.entries[ctx.channel.id][name]
         del self.entries[ctx.channel.id][name]
+
+        if len(self.entries[ctx.channel.id]) == 0:
+            del self.entries[ctx.channel.id]
+
         await ctx.send(
             f"Posts from [{name}](<{url}>) will no longer be sent to this channel"
         )
