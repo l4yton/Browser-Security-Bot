@@ -61,7 +61,8 @@ class BlogsCog(commands.Cog):
 
     @tasks.loop(hours=12)
     async def check_for_new_blogs(self):
-        start_time = datetime.datetime.now(datetime.timezone.utc)
+        start_time = datetime.datetime.now(datetime.timezone.utc).replace(
+            microsecond=0, tzinfo=None)
 
         if self.latest_run is None:
             self.latest_run = start_time
@@ -72,8 +73,7 @@ class BlogsCog(commands.Cog):
                 feed = feedparser.parse(url)
                 for post in feed["entries"]:
                     published = datetime.datetime.fromtimestamp(
-                        time.mktime(post["published_parsed"]),
-                        datetime.timezone.utc)
+                        time.mktime(post["published_parsed"]))
                     if published > self.latest_run:
                         await self.bot.get_channel(channel_id).send(
                             f"{name}: [{escape_markdown(post['title'])}](<{post['link']}>)"

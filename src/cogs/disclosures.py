@@ -48,7 +48,8 @@ class DisclosuresTracker(ABC):
         self.latest_run = None
 
     async def check_for_new_disclosures(self):
-        start_time = datetime.datetime.now(datetime.timezone.utc)
+        start_time = datetime.datetime.now(datetime.timezone.utc).replace(
+            microsecond=0, tzinfo=None)
 
         if self.latest_run is None:
             self.latest_run = start_time
