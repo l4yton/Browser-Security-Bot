@@ -129,6 +129,7 @@ class BlogsCog(commands.Cog):
     async def blogs_list(self, ctx: commands.Context):
         if len(self.entries) == 0:
             await ctx.send("There are currently no entries")
+            return
 
         await ctx.send("\n".join([
             f"<#{channel_id}>: " +
