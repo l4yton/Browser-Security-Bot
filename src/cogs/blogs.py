@@ -38,7 +38,7 @@ class BlogsCog(commands.Cog):
             for (name, url) in blogs.items():
                 self.entries[int(channel_id)][name] = url
 
-    async def cog_unload(self):
+    async def update_config(self):
         async with asyncio.Lock():
             # This is not super efficient, but we don't really care.
             with open("config.json", "r") as f:
@@ -53,11 +53,11 @@ class BlogsCog(commands.Cog):
             with open("config.json", "w") as f:
                 json.dump(data, f)
 
-            return await super().cog_unload()
-
     @commands.Cog.listener()
     async def on_guild_channel_delete(self, channel: commands.Context):
-        del self.entries[channel.id]
+        if channel.id in self.entries:
+            del self.entries[channel.id]
+            self.update_config()
 
     @tasks.loop(hours=12)
     async def check_for_new_blogs(self):
@@ -100,6 +100,8 @@ class BlogsCog(commands.Cog):
             return
 
         self.entries[ctx.channel.id][name] = url
+        self.update_config()
+
         await ctx.send(
             f"Posts from [{name}](<{url}>) will now be sent to this channel")
 
@@ -111,14 +113,17 @@ class BlogsCog(commands.Cog):
             return
 
         url = self.entries[ctx.channel.id][name]
-        del self.entries[ctx.channel.id][name]
 
-        if len(self.entries[ctx.channel.id]) == 0:
-            del self.entries[ctx.channel.id]
+        del self.entries[ctx.channel.id][name]
+        self.update_config()
 
         await ctx.send(
             f"Posts from [{name}](<{url}>) will no longer be sent to this channel"
         )
+
+        if len(self.entries[ctx.channel.id]) == 0:
+            del self.entries[ctx.channel.id]
+            self.update_config()
 
     @blogs.command(name="list")
     async def blogs_list(self, ctx: commands.Context):

@@ -294,7 +294,7 @@ class AdvisoriesCog(commands.Cog):
         if channel:
             self.safari = SafariAdvisoriesTracker(channel)
 
-    async def cog_unload(self):
+    async def update_config(self):
         async with asyncio.Lock():
             # This is not super efficient, but we don't really care.
             with open("config.json", "r") as f:
@@ -314,18 +314,19 @@ class AdvisoriesCog(commands.Cog):
             with open("config.json", "w") as f:
                 json.dump(data, f)
 
-            return await super().cog_unload()
-
     @commands.Cog.listener()
     async def on_guild_channel_delete(self, channel: commands.Context):
         if self.chrome and self.chrome.channel.id == channel.id:
             self.chrome = None
+            self.update_config()
 
         if self.firefox and self.firefox.channel.id == channel.id:
             self.firefox = None
+            self.update_config()
 
         if self.safari and self.safari.channel.id == channel.id:
             self.safari = None
+            self.update_config()
 
     @tasks.loop(hours=12)
     async def check_for_new_advisory(self):
@@ -368,14 +369,20 @@ class AdvisoriesCog(commands.Cog):
         match arg:
             case "chrome":
                 self.chrome = ChromeAdvisoriesTracker(ctx.channel)
+                self.update_config()
+
                 await ctx.send(
                     "Chrome advisories will now be sent to this channel")
             case "firefox":
                 self.firefox = FirefoxAdvisoriesTracker(ctx.channel)
+                self.update_config()
+
                 await ctx.send(
                     "Firefox advisories will now be sent to this channel")
             case "safari":
                 self.safari = SafariAdvisoriesTracker(ctx.channel)
+                self.update_config()
+
                 await ctx.send(
                     "Safari advisories will now be sent to this channel")
             case _:
@@ -411,15 +418,21 @@ class AdvisoriesCog(commands.Cog):
         match arg:
             case "chrome":
                 self.chrome = None
+                self.update_config()
+
                 await ctx.send(
                     "Chrome advisories will no longer be sent to this channel")
             case "firefox":
                 self.firefox = None
+                self.update_config()
+
                 await ctx.send(
                     "Firefox advisories will no longer be sent to this channel"
                 )
             case "safari":
                 self.safari = None
+                self.update_config()
+
                 await ctx.send(
                     "Safari advisories will no longer be sent to this channel")
             case _:

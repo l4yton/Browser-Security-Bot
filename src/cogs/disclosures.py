@@ -187,7 +187,7 @@ class DisclosuresCog(commands.Cog):
         if channel:
             self.firefox = FirefoxDisclosuresTracker(channel)
 
-    async def cog_unload(self):
+    async def update_config(self):
         async with asyncio.Lock():
             # This is not super efficient, but we don't really care.
             with open("config.json", "r") as f:
@@ -203,12 +203,11 @@ class DisclosuresCog(commands.Cog):
             with open("config.json", "w") as f:
                 json.dump(data, f)
 
-            return await super().cog_unload()
-
     @commands.Cog.listener()
     async def on_guild_channel_delete(self, channel: commands.Context):
         if self.firefox and self.firefox.channel.id == channel.id:
             self.firefox = None
+            self.update_config()
 
     @tasks.loop(hours=12)
     async def check_for_new_disclosures(self):
@@ -233,6 +232,8 @@ class DisclosuresCog(commands.Cog):
         match arg:
             case "firefox":
                 self.firefox = FirefoxDisclosuresTracker(ctx.channel)
+                self.update_config()
+
                 await ctx.send(
                     "Firefox disclosures will now be sent to this channel")
             case _:
@@ -252,6 +253,8 @@ class DisclosuresCog(commands.Cog):
         match arg:
             case "firefox":
                 self.firefox = None
+                self.update_config()
+
                 await ctx.send(
                     "Firefox disclosures will no longer be sent to this channel"
                 )
