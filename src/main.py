@@ -27,7 +27,7 @@ async def main():
     # properly :)
     try:
         await bot.start(TOKEN)
-    except Exception:
+    except (Exception, KeyboardInterrupt):
         await bot.close()
 
 
