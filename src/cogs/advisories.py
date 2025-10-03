@@ -176,7 +176,7 @@ class FirefoxAdvisoriesTracker(AdvisoriesTracker):
             bug_qs = query["id"][0] if "id" in query else query["bug_id"][0]
             search = " OR ".join(
                 ["\"Bug: " + bug_id + "\"" for bug_id in bug_qs.split(",")])
-            commit_link = f"https://github.com/search?q=repo%3amozilla%2fgecko-dev+{quote(search)}&type=commits"
+            commit_link = f"https://github.com/search?q=repo%3amozilla-firefox%2ffirefox+{quote(search)}&type=commits"
 
             bugs.append(
                 Bug(reward=None,

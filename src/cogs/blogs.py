@@ -24,7 +24,6 @@ class BlogsCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        # We may end up here on a reconnect.
         if len(self.entries) > 0:
             return
 
@@ -34,6 +33,8 @@ class BlogsCog(commands.Cog):
         if not "blogs" in data:
             return
 
+        # When dumping to JSON, the channel ids are converted to strings,
+        # so we need to convert them back.
         for (channel_id, blogs) in data["blogs"].items():
             self.entries[int(channel_id)] = {}
             for (name, url) in blogs.items():
@@ -45,11 +46,7 @@ class BlogsCog(commands.Cog):
             with open("config.json", "r") as f:
                 data = json.load(f)
 
-            data["blogs"] = {}
-            for (channel_id, blogs) in self.entries.items():
-                data["blogs"][channel_id] = {}
-                for (name, url) in blogs.items():
-                    data["blogs"][channel_id][name] = url
+            data["blogs"] = self.entries
 
             with open("config.json", "w") as f:
                 json.dump(data, f)
@@ -75,7 +72,7 @@ class BlogsCog(commands.Cog):
                 try:
                     feed = feedparser.parse(url)
                 except Exception as e:
-                    logging.error(f"Blogs: Failed to request {url}: {e}")
+                    logging.error(f"Failed to request blog @ {url}: {e}")
                     continue
 
                 for post in feed["entries"]:
