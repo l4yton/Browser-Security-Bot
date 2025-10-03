@@ -27,7 +27,7 @@ async def main():
     # properly :)
     try:
         await bot.start(TOKEN)
-    except (Exception, KeyboardInterrupt):
+    except (asyncio.exceptions.CancelledError, KeyboardInterrupt):
         await bot.close()
 
 
