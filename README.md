@@ -2,7 +2,7 @@
 
 A discord bot for (browser) security research. It allows you to monitor for new...
 - ...Chrome/Firefox/Safari security advisories
-- ...Chrome/Firefox disclosed security bugs (WIP)
+- ...Chromium/Firefox disclosed security bugs
 - ...arXiv papers of your interest (WIP)
 - ...posts in your favorite security blogs
 

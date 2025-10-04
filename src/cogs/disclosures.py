@@ -4,7 +4,7 @@ import logging
 import datetime
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, asdict
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import httpx
 from discord import TextChannel
@@ -16,7 +16,7 @@ from discord.ext import commands, tasks
 class Bug:
     reward: Optional[float]
     severity: Optional[str]
-    description: str
+    title: str
     report_link: str
 
     def discord_message(self) -> str:
@@ -27,15 +27,16 @@ class Bug:
         if self.severity:
             message += f"({self.severity}) "
 
-        assert self.description
+        assert self.title
         assert self.report_link
-        message += f"[{escape_markdown(self.description)}](<{self.report_link}>)"
+        message += f"[{escape_markdown(self.title)}](<{self.report_link}>)"
 
         return message
 
 
 @dataclass
 class DisclosuresConfig:
+    chromium_channel_id: Optional[int]
     firefox_channel_id: Optional[int]
 
 
@@ -74,7 +75,7 @@ class FirefoxDisclosuresTracker(DisclosuresTracker):
 
     async def find_latest_disclosures(self) -> List[Bug]:
         logging.info(
-            "FirefoxDisclosureTracker: Finding latest disclosed bugs...")
+            "FirefoxDisclosuresTracker: Finding latest disclosed bugs...")
         async with httpx.AsyncClient(follow_redirects=True) as client:
             resp = await client.get(
                 "https://bugzilla.mozilla.org/rest/bug",
@@ -133,14 +134,14 @@ class FirefoxDisclosuresTracker(DisclosuresTracker):
         bugs = []
         for bug in resp.json()["bugs"]:
             severity = self.extract_severity_from(bug["keywords"])
-            description = bug["summary"]
-            report_link = "https://bugzilla.mozilla.org/show_bug.cgi?id=" + str(
-                bug["id"])
+            title = bug["summary"]
 
             bugs.append(
                 Bug(severity=severity,
-                    description=description,
-                    report_link=report_link))
+                    title=title,
+                    report_link=
+                    f"https://bugzilla.mozilla.org/show_bug.cgi?id={bug['id']}"
+                    ))
 
         return bugs
 
@@ -157,12 +158,81 @@ class FirefoxDisclosuresTracker(DisclosuresTracker):
         return None
 
 
+class ChromiumDisclosuresTracker(DisclosuresTracker):
+    PROTOBUF_REWARD_LABEL_ID = 1223135
+
+    async def find_latest_disclosures(self) -> List[Bug]:
+        logging.info(
+            "ChromiumDisclosuresTracker: Finding latest disclosed bugs...")
+        async with httpx.AsyncClient(follow_redirects=True) as client:
+            resp = await client.post(
+                "https://issues.chromium.org/action/issues/list",
+                headers={"Content-Type": "application/json"},
+                json=[
+                    None, None, None, None, None, ["157"],
+                    [
+                        f"type:vulnerability status:fixed modified:{self.latest_run.isoformat()}..{datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0, tzinfo=None).isoformat()}",
+                        None, 50, "start_index:0"
+                    ]
+                ])
+        # This is a bit cursed, but works. They are (what I'm assuming to
+        # be) sending protobuf'ed responses and we just extract what we
+        # need.
+        protobuf_data = json.loads(resp.text.split("\n")[2])
+        protobuf_bugs_data = protobuf_data[0][6][0]
+
+        bugs = []
+        for protobuf_bug_data in protobuf_bugs_data:
+            identifier = protobuf_bug_data[1]
+
+            change_time = self.latest_access_limit_change(identifier)
+            if change_time and self.latest_run > change_time:
+                continue
+
+            title = protobuf_bug_data[2][5]
+            reward = None
+            for protobuf_label_data in protobuf_bug_data[2][14]:
+                if protobuf_label_data[0] == self.PROTOBUF_REWARD_LABEL_ID:
+                    reward = protobuf_label_data[4]
+
+            bugs.append(
+                Bug(reward=reward,
+                    title=title,
+                    report_link=
+                    f"https://issues.chromium.org/issues/{identifier}"))
+
+        return bugs
+
+    @staticmethod
+    async def latest_access_limit_change(
+            identifier: Union[str, int]) -> Optional[datetime.datetime]:
+        async with httpx.AsyncClient(follow_redirects=True) as client:
+            resp = client.get(
+                f"https://issues.chromium.org/action/issues/{identifier}/events"
+            )
+
+        protobuf_data = json.loads(resp.text.split("\n")[2])
+        protobuf_events_data = protobuf_data[0][2]
+
+        for protobuf_event_data in reversed(protobuf_events_data):
+            timestamp = protobuf_event_data[1][0]
+            if protobuf_event_data[5] and protobuf_event_data[5][0][
+                    0] == "access_limit":
+                return datetime.datetime.fromtimestamp(
+                    timestamp, tz=datetime.timezone.utc).replace(tzinfo=None,
+                                                                 microsecond=0)
+
+        return None
+
+
 class DisclosuresCog(commands.Cog):
     bot: commands.Bot
+    chromium: ChromiumDisclosuresTracker
     firefox: FirefoxDisclosuresTracker
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.chromium = None
         self.firefox = None
 
         self.check_for_new_disclosures.start()
@@ -170,7 +240,7 @@ class DisclosuresCog(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         # We may end up here on a reconnect.
-        if self.firefox:
+        if self.chromium or self.firefox:
             return
 
         with open("config.json", "r") as f:
@@ -183,6 +253,10 @@ class DisclosuresCog(commands.Cog):
         # with the provided configuration.
         config = DisclosuresConfig(**data["disclosures"])
 
+        channel = self.bot.get_channel(config.chromium_channel_id)
+        if channel:
+            self.chromium = ChromiumDisclosuresTracker(channel)
+
         channel = self.bot.get_channel(config.firefox_channel_id)
         if channel:
             self.firefox = FirefoxDisclosuresTracker(channel)
@@ -193,9 +267,11 @@ class DisclosuresCog(commands.Cog):
             with open("config.json", "r") as f:
                 data = json.load(f)
 
+            chromium_channel_id = self.chromium.channel.id if self.chromium else None
             firefox_channel_id = self.firefox.channel.id if self.firefox else None
 
-            config = DisclosuresConfig(firefox_channel_id=firefox_channel_id)
+            config = DisclosuresConfig(chromium_channel_id=chromium_channel_id,
+                                       firefox_channel_id=firefox_channel_id)
             # Every Cog is responsible for its own values and has to make sure
             # not to override any others.
             data["disclosures"] = asdict(config)
@@ -207,11 +283,17 @@ class DisclosuresCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_guild_channel_delete(self, channel: commands.Context):
+        if self.chromium and self.chromium.channel.id == channel.id:
+            self.chromium = None
+
         if self.firefox and self.firefox.channel.id == channel.id:
             self.firefox = None
 
     @tasks.loop(hours=12)
     async def check_for_new_disclosures(self):
+        if self.chromium:
+            await self.chromium.check_for_new_disclosures()
+
         if self.firefox:
             await self.firefox.check_for_new_disclosures()
 
@@ -224,6 +306,12 @@ class DisclosuresCog(commands.Cog):
     @disclosures.command(name="add")
     async def disclosures_add(self, ctx: commands.Context, arg: str):
         # Check if the tracker is already running.
+        if arg == "chromium" and self.chromium:
+            await ctx.send(
+                f"ChromiumDisclosuresTracker is already running in <#{self.chromium.channel.id}>"
+            )
+            return
+
         if arg == "firefox" and self.firefox:
             await ctx.send(
                 f"FirefoxDisclosuresTracker is already running in <#{self.firefox.channel.id}>"
@@ -231,17 +319,29 @@ class DisclosuresCog(commands.Cog):
             return
 
         match arg:
+            case "chromium":
+                self.chromium = ChromiumDisclosuresTracker(ctx.channel)
+                await ctx.send(
+                    "Chromium disclosures will now be sent to this channel")
             case "firefox":
                 self.firefox = FirefoxDisclosuresTracker(ctx.channel)
                 await ctx.send(
                     "Firefox disclosures will now be sent to this channel")
             case _:
-                await ctx.send("Invalid argument. Valid values are: firefox")
+                await ctx.send(
+                    "Invalid argument. Valid values are: chromium, firefox")
 
     @disclosures.command(name="remove")
     async def disclosures_remove(self, ctx: commands.Context, arg: str):
         # Check if the tracker is running in the channel the message
         # originated from.
+        if arg == "chromium" and not (
+                self.chromium and self.chromium.channel.id == ctx.channel.id):
+            await ctx.send(
+                "There is currently no ChromiumDisclosuresTracker running in this channel"
+            )
+            return
+
         if arg == "firefox" and not (self.firefox and self.firefox.channel.id
                                      == ctx.channel.id):
             await ctx.send(
@@ -250,17 +350,25 @@ class DisclosuresCog(commands.Cog):
             return
 
         match arg:
+            case "chromium":
+                self.chromium = None
+                await ctx.send(
+                    "Chromium disclosures will no longer be sent to this channel"
+                )
             case "firefox":
                 self.firefox = None
                 await ctx.send(
                     "Firefox disclosures will no longer be sent to this channel"
                 )
             case _:
-                await ctx.send("Invalid argument. Valid values are: firefox")
+                await ctx.send(
+                    "Invalid argument. Valid values are: chromium, firefox")
 
     @disclosures.command(name="list")
     async def disclosures_list(self, ctx: commands.Context):
+        chromium_channel_message = f"<#{self.chromium.channel.id}>" if self.chromium else "null"
         firefox_channel_message = f"<#{self.firefox.channel.id}>" if self.firefox else "null"
 
         await ctx.send(
+            f"- ChromiumDisclosuresTracker: {chromium_channel_message}\n" +
             f"- FirefoxDisclosuresTracker: {firefox_channel_message}")
