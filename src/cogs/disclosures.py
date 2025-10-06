@@ -185,7 +185,7 @@ class ChromiumDisclosuresTracker(DisclosuresTracker):
         for protobuf_bug_data in protobuf_bugs_data:
             identifier = protobuf_bug_data[1]
 
-            change_time = self.latest_access_limit_change(identifier)
+            change_time = await self.latest_access_limit_change(identifier)
             if change_time and self.latest_run > change_time:
                 continue
 
