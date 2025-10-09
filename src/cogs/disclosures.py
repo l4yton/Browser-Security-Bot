@@ -207,7 +207,7 @@ class ChromiumDisclosuresTracker(DisclosuresTracker):
     async def latest_access_limit_change(
             identifier: Union[str, int]) -> Optional[datetime.datetime]:
         async with httpx.AsyncClient(follow_redirects=True) as client:
-            resp = client.get(
+            resp = await client.get(
                 f"https://issues.chromium.org/action/issues/{identifier}/events"
             )
 
