@@ -327,7 +327,7 @@ class AdvisoriesCog(commands.Cog):
         if self.safari and self.safari.channel.id == channel.id:
             self.safari = None
 
-    @tasks.loop(hours=12)
+    @tasks.loop(hours=6)
     async def check_for_new_advisory(self):
         if self.chrome:
             await self.chrome.check_for_new_advisory()

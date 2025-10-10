@@ -58,7 +58,7 @@ class BlogsCog(commands.Cog):
         if channel.id in self.entries:
             del self.entries[channel.id]
 
-    @tasks.loop(hours=12)
+    @tasks.loop(hours=6)
     async def check_for_new_blogs(self):
         start_time = datetime.datetime.now(datetime.timezone.utc).replace(
             microsecond=0, tzinfo=None)

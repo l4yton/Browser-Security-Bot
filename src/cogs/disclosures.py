@@ -137,7 +137,8 @@ class FirefoxDisclosuresTracker(DisclosuresTracker):
             title = bug["summary"]
 
             bugs.append(
-                Bug(severity=severity,
+                Bug(reward=None,
+                    severity=severity,
                     title=title,
                     report_link=
                     f"https://bugzilla.mozilla.org/show_bug.cgi?id={bug['id']}"
@@ -197,6 +198,7 @@ class ChromiumDisclosuresTracker(DisclosuresTracker):
 
             bugs.append(
                 Bug(reward=reward,
+                    severity=None,
                     title=title,
                     report_link=
                     f"https://issues.chromium.org/issues/{identifier}"))
@@ -289,7 +291,7 @@ class DisclosuresCog(commands.Cog):
         if self.firefox and self.firefox.channel.id == channel.id:
             self.firefox = None
 
-    @tasks.loop(hours=12)
+    @tasks.loop(hours=6)
     async def check_for_new_disclosures(self):
         if self.chromium:
             await self.chromium.check_for_new_disclosures()
