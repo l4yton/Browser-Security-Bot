@@ -172,7 +172,7 @@ class ChromiumDisclosuresTracker(DisclosuresTracker):
                 json=[
                     None, None, None, None, None, ["157"],
                     [
-                        f"type:vulnerability status:fixed modified:{self.latest_run.isoformat()}..{datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0, tzinfo=None).isoformat()}",
+                        f"type:vulnerability status:fixed modified>={self.latest_run.isoformat()}",
                         None, 50, "start_index:0"
                     ]
                 ])
