@@ -182,6 +182,9 @@ class ChromiumDisclosuresTracker(DisclosuresTracker):
         protobuf_data = json.loads(resp.text.split("\n")[2])
         protobuf_bugs_data = protobuf_data[0][6][0]
 
+        if protobuf_bugs_data is None:
+            return []
+
         bugs = []
         for protobuf_bug_data in protobuf_bugs_data:
             identifier = protobuf_bug_data[1]
