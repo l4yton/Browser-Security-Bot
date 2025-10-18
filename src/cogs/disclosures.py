@@ -190,7 +190,7 @@ class ChromiumDisclosuresTracker(DisclosuresTracker):
             identifier = protobuf_bug_data[1]
 
             change_time = await self.latest_access_limit_change(identifier)
-            if change_time and self.latest_run > change_time:
+            if (change_time is None) or (self.latest_run > change_time):
                 continue
 
             title = protobuf_bug_data[2][5]
