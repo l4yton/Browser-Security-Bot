@@ -70,7 +70,9 @@ class BlogsCog(commands.Cog):
         for (channel_id, blogs) in self.entries.items():
             for (name, url) in blogs.items():
                 try:
-                    feed = feedparser.parse(url)
+                    # Avoid feedparser blocking everything if it gets stuck.
+                    async with asyncio.timeout(10):
+                        feed = await asyncio.to_thread(feedparser.parse, url)
                 except Exception as e:
                     logging.error(f"Failed to request blog @ {url}: {e}")
                     continue
