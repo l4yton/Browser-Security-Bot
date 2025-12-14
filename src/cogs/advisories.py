@@ -338,6 +338,12 @@ class AdvisoriesCog(commands.Cog):
         if self.safari:
             await self.safari.check_for_new_advisory()
 
+    @check_for_new_advisory.error
+    async def check_for_new_advisory_error(self, error):
+        logging.error(
+            f"AdvisoriesCog: An error occurred during check_for_new_advisory: {error}"
+        )
+
     @commands.group()
     async def advisories(self, ctx: commands.Context):
         if ctx.invoked_subcommand is None:
