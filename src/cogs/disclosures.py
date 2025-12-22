@@ -133,7 +133,8 @@ class FirefoxDisclosuresTracker(DisclosuresTracker):
 
         bugs = []
         for bug in resp.json()["bugs"]:
-            severity = self.extract_severity_from(bug["keywords"])
+            severity = FirefoxDisclosuresTracker.extract_severity_from(
+                bug["keywords"])
             title = bug["summary"]
 
             bugs.append(
