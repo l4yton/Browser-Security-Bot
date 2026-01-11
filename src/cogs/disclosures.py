@@ -306,8 +306,8 @@ class DisclosuresCog(commands.Cog):
     @check_for_new_disclosures.error
     async def check_for_new_disclosures_error(self, error):
         logging.error(
-            f"DisclosuresCog: An error occurred during check_for_new_disclosures: {error}"
-        )
+            f"DisclosuresCog: An error occurred during check_for_new_disclosures",
+            exc_info=error)
 
     @commands.group()
     async def disclosures(self, ctx: commands.Context):

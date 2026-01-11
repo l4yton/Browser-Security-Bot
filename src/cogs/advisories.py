@@ -341,8 +341,8 @@ class AdvisoriesCog(commands.Cog):
     @check_for_new_advisory.error
     async def check_for_new_advisory_error(self, error):
         logging.error(
-            f"AdvisoriesCog: An error occurred during check_for_new_advisory: {error}"
-        )
+            f"AdvisoriesCog: An error occurred during check_for_new_advisory",
+            exc_info=error)
 
     @commands.group()
     async def advisories(self, ctx: commands.Context):

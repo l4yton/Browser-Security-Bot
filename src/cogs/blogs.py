@@ -92,7 +92,8 @@ class BlogsCog(commands.Cog):
     @check_for_new_blogs.error
     async def check_for_new_blogs_error(self, error):
         logging.error(
-            f"BlogsCog: An error occurred during check_for_new_blogs: {error}")
+            f"BlogsCog: An error occurred during check_for_new_blogs",
+            exc_info=error)
 
     @commands.group()
     async def blogs(self, ctx: commands.Context):
