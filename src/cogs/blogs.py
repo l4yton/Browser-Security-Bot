@@ -73,8 +73,9 @@ class BlogsCog(commands.Cog):
                     # Avoid feedparser blocking everything if it gets stuck.
                     async with asyncio.timeout(10):
                         feed = await asyncio.to_thread(feedparser.parse, url)
-                except Exception as e:
-                    logging.error(f"Failed to request blog @ {url}: {e}")
+                except Exception as error:
+                    logging.error(f"Failed to request blog @ {url}",
+                                  exc_info=error)
                     continue
 
                 for post in feed["entries"]:

@@ -298,10 +298,20 @@ class DisclosuresCog(commands.Cog):
     @tasks.loop(hours=6)
     async def check_for_new_disclosures(self):
         if self.chromium:
-            await self.chromium.check_for_new_disclosures()
+            try:
+                await self.chromium.check_for_new_disclosures()
+            except Exception as error:
+                logging.error(
+                    "DisclosuresCog: An error occured during self.chromium.check_for_new_disclosures",
+                    exc_info=error)
 
         if self.firefox:
-            await self.firefox.check_for_new_disclosures()
+            try:
+                await self.firefox.check_for_new_disclosures()
+            except Exception as error:
+                logging.error(
+                    "DisclosuresCog: An error occured during self.firefox.check_for_new_disclosures",
+                    exc_info=error)
 
     @check_for_new_disclosures.error
     async def check_for_new_disclosures_error(self, error):

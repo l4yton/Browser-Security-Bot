@@ -330,13 +330,28 @@ class AdvisoriesCog(commands.Cog):
     @tasks.loop(hours=6)
     async def check_for_new_advisory(self):
         if self.chrome:
-            await self.chrome.check_for_new_advisory()
+            try:
+                await self.chrome.check_for_new_advisory()
+            except Exception as error:
+                logging.error(
+                    "AdvisoriesCog: An error occured during self.chrome.check_for_new_advisory",
+                    exc_info=error)
 
         if self.firefox:
-            await self.firefox.check_for_new_advisory()
+            try:
+                await self.firefox.check_for_new_advisory()
+            except Exception as error:
+                logging.error(
+                    "AdvisoriesCog: An error occured during self.firefox.check_for_new_advisory",
+                    exc_info=error)
 
         if self.safari:
-            await self.safari.check_for_new_advisory()
+            try:
+                await self.safari.check_for_new_advisory()
+            except Exception as error:
+                logging.error(
+                    "AdvisoriesCog: An error occured during self.safari.check_for_new_advisory",
+                    exc_info=error)
 
     @check_for_new_advisory.error
     async def check_for_new_advisory_error(self, error):
